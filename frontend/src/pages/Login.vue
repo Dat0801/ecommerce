@@ -10,7 +10,7 @@
             type="email" 
             id="email" 
             v-model="email"
-            class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+            class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500 outline-none transition-colors"
             placeholder="user@example.com"
           >
         </div>
@@ -21,14 +21,14 @@
             type="password" 
             id="password" 
             v-model="password"
-            class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+            class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500 outline-none transition-colors"
             placeholder="••••••••"
           >
         </div>
         
         <button 
           type="submit"
-          class="w-full bg-blue-600 text-white font-medium py-2 rounded-lg hover:bg-blue-700 transition"
+          class="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-medium py-2 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 transform hover:scale-[1.02]"
         >
           Login
         </button>
@@ -36,7 +36,7 @@
       
       <p class="mt-6 text-center text-gray-600">
         Don't have an account? 
-        <router-link to="/register" class="text-blue-600 hover:underline">Register</router-link>
+        <router-link to="/register" class="text-purple-600 hover:underline font-medium">Register</router-link>
       </p>
     </div>
   </div>
@@ -54,9 +54,21 @@ const email = ref('')
 const password = ref('')
 
 const handleLogin = async () => {
-  // Placeholder for login logic
-  console.log('Login attempt:', { email: email.value, password: password.value })
-  // authStore.setToken('token_here')
-  // router.push('/')
+  try {
+    await authStore.login({
+      email: email.value,
+      password: password.value
+    })
+    
+    // Check role and redirect accordingly
+    if (authStore.user?.role === 'admin') {
+      router.push('/admin')
+    } else {
+      router.push('/')
+    }
+  } catch (error) {
+    console.error('Login failed:', error)
+    alert(error.response?.data?.message || 'Login failed')
+  }
 }
 </script>

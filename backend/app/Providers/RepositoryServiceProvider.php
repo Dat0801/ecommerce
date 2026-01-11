@@ -12,11 +12,20 @@ class RepositoryServiceProvider extends ServiceProvider
     public function register(): void
     {
         // Register repository bindings here
-        // Example:
-        // $this->app->bind(
-        //     'App\Interfaces\ProductRepositoryInterface',
-        //     'App\Repositories\ProductRepository'
-        // );
+        $this->app->bind(
+            'App\Interfaces\AuthRepositoryInterface',
+            'App\Repositories\AuthRepository'
+        );
+
+        $this->app->bind(
+            'App\Interfaces\CategoryRepositoryInterface',
+            'App\Repositories\CategoryRepository'
+        );
+
+        $this->app->bind(
+            'App\Interfaces\ProductRepositoryInterface',
+            'App\Repositories\ProductRepository'
+        );
     }
 
     /**

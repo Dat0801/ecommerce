@@ -67,8 +67,10 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 const name = ref('')
 const email = ref('')
@@ -76,12 +78,23 @@ const password = ref('')
 const confirmPassword = ref('')
 
 const handleRegister = async () => {
-  // Placeholder for register logic
-  console.log('Register attempt:', { 
-    name: name.value, 
-    email: email.value, 
-    password: password.value 
-  })
-  // router.push('/login')
+  if (password.value !== confirmPassword.value) {
+    alert('Passwords do not match')
+    return
+  }
+
+  try {
+    await authStore.register({
+      name: name.value,
+      email: email.value,
+      password: password.value,
+      password_confirmation: confirmPassword.value
+    })
+    
+    router.push('/')
+  } catch (error) {
+    console.error('Register failed:', error)
+    alert(error.response?.data?.message || 'Register failed')
+  }
 }
 </script>
