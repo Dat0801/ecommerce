@@ -1,0 +1,44 @@
+# Laravel
+backend/node_modules
+backend/vendor
+backend/.env
+backend/.env.local
+backend/.env.*.local
+backend/storage/logs/*
+backend/storage/debugbar/*
+backend/*.sqlite
+backend/*.sqlite-journal
+backend/bootstrap/cache/*
+backend/public/hot
+backend/public/storage
+backend/.vscode
+backend/.idea
+backend/.DS_Store
+
+# Vue / Frontend
+frontend/node_modules
+frontend/dist
+frontend/.env.local
+frontend/.env.*.local
+frontend/.DS_Store
+frontend/.vscode
+frontend/.idea
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*.swn
+*.sublime-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+*.log
+
+# General
+.env
+.env.local
+*.backup
+*.tmp
