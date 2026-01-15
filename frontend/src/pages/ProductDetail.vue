@@ -1,5 +1,18 @@
 <template>
   <div class="min-h-screen bg-gray-50 py-12">
+    <!-- Toast Notification -->
+    <div v-if="showNotification" class="fixed top-4 right-4 z-50 animate-bounce">
+      <div class="bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3">
+        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+        </svg>
+        <div>
+          <p class="font-semibold">Added to Cart!</p>
+          <p class="text-sm">{{ notificationMessage }}</p>
+        </div>
+      </div>
+    </div>
+
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div v-if="loading" class="flex justify-center py-12">
         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
@@ -70,10 +83,11 @@
                 </div>
                 <button 
                   @click="addToCart"
-                  :disabled="product.stock === 0"
-                  class="flex-1 bg-indigo-600 border border-transparent rounded-md py-3 px-8 flex items-center justify-center text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  :disabled="product.stock === 0 || isAdding"
+                  class="flex-1 bg-indigo-600 border border-transparent rounded-md py-3 px-8 flex items-center justify-center text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
                 >
-                  Add to Cart
+                  <span v-if="isAdding" class="animate-spin mr-2">⏳</span>
+                  {{ isAdding ? 'Adding...' : 'Add to Cart' }}
                 </button>
               </div>
             </div>
@@ -92,11 +106,16 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import productService from '../services/product.service'
+import { useCartStore } from '../stores/cart'
 
 const route = useRoute()
+const cartStore = useCartStore()
 const product = ref(null)
 const loading = ref(true)
 const quantity = ref(1)
+const isAdding = ref(false)
+const showNotification = ref(false)
+const notificationMessage = ref('')
 
 const fetchProduct = async () => {
   try {
@@ -109,9 +128,32 @@ const fetchProduct = async () => {
   }
 }
 
-const addToCart = () => {
-  // Implement cart logic here (e.g., using a Cart Store)
-  alert(`Added ${quantity.value} ${product.value.name}(s) to cart`)
+const addToCart = async () => {
+  isAdding.value = true
+  try {
+    await cartStore.addItem(product.value.id, parseInt(quantity.value))
+    
+    // Show notification
+    notificationMessage.value = `${quantity.value} x ${product.value.name} added to cart! (Total: ${cartStore.totalItems} items)`
+    showNotification.value = true
+    
+    // Hide notification after 3 seconds
+    setTimeout(() => {
+      showNotification.value = false
+    }, 3000)
+    
+    // Reset quantity
+    quantity.value = 1
+  } catch (error) {
+    console.error('Error adding to cart:', error)
+    notificationMessage.value = 'Failed to add item to cart'
+    showNotification.value = true
+    setTimeout(() => {
+      showNotification.value = false
+    }, 3000)
+  } finally {
+    isAdding.value = false
+  }
 }
 
 onMounted(() => {
