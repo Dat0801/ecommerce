@@ -110,6 +110,23 @@
             </tr>
           </tbody>
         </table>
+
+        <!-- Pagination -->
+        <div class="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-white">
+          <div class="text-sm text-gray-600">Page {{ meta.current_page }} of {{ meta.last_page }} • Total {{ meta.total }}</div>
+          <div class="flex items-center gap-2">
+            <button 
+              @click="goToPage(meta.current_page - 1)"
+              :disabled="meta.current_page <= 1"
+              class="px-3 py-2 rounded-lg border border-gray-200 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+            >Prev</button>
+            <button 
+              @click="goToPage(meta.current_page + 1)"
+              :disabled="meta.current_page >= meta.last_page"
+              class="px-3 py-2 rounded-lg border border-gray-200 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+            >Next</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -206,6 +223,9 @@ const error = ref(null)
 const showModal = ref(false)
 const isEditing = ref(false)
 const submitting = ref(false)
+const page = ref(1)
+const perPage = ref(10)
+const meta = ref({ current_page: 1, last_page: 1, total: 0 })
 
 const form = ref({
   id: null,
@@ -216,14 +236,26 @@ const form = ref({
 const fetchCategories = async () => {
   loading.value = true
   try {
-    const response = await categoryService.getAllCategories()
-    categories.value = response.data.data
+    const response = await categoryService.getAllCategories({ page: page.value, per_page: perPage.value })
+    const payload = response.data || {}
+    categories.value = payload.data || []
+    meta.value = {
+      current_page: payload.meta?.current_page || 1,
+      last_page: payload.meta?.last_page || 1,
+      total: payload.meta?.total || (payload.data ? payload.data.length : 0)
+    }
   } catch (err) {
     error.value = 'Failed to load categories'
     console.error(err)
   } finally {
     loading.value = false
   }
+}
+
+const goToPage = (p) => {
+  if (p < 1 || p > meta.value.last_page) return
+  page.value = p
+  fetchCategories()
 }
 
 const openCreateModal = () => {
