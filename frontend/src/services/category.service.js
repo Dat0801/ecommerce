@@ -1,8 +1,8 @@
 import apiClient from './api'
 
 export default {
-  getAllCategories() {
-    return apiClient.get('/categories')
+  getAllCategories(params = {}) {
+    return apiClient.get('/categories', { params })
   },
 
   getCategory(id) {

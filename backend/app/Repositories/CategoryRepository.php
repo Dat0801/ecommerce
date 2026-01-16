@@ -9,8 +9,8 @@ class CategoryRepository implements CategoryRepositoryInterface
 {
     public function getAll()
     {
-        // Return nested structure (root categories with children)
-        return Category::with('children')->whereNull('parent_id')->get();
+        $perPage = request('per_page', 10);
+        return Category::with('parent')->paginate($perPage);
     }
 
     public function getById($id)

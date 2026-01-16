@@ -62,6 +62,16 @@
             </svg>
             <span class="font-medium">Categories</span>
           </router-link>
+          <router-link 
+            to="/admin/orders" 
+            class="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/10 transition-all group"
+            active-class="bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h10"></path>
+            </svg>
+            <span class="font-medium">Orders</span>
+          </router-link>
         </div>
       </nav>
       
@@ -122,6 +132,7 @@ const currentRouteName = computed(() => {
     case 'AdminDashboard': return 'Dashboard'
     case 'AdminProducts': return 'Product Management'
     case 'AdminCategories': return 'Category Management'
+    case 'AdminOrders': return 'Order Management'
     default: return 'Admin'
   }
 })

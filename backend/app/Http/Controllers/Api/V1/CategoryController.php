@@ -17,7 +17,7 @@ class CategoryController extends Controller
         $this->categoryService = $categoryService;
     }
 
-    public function index()
+    public function index(Request $request)
     {
         $categories = $this->categoryService->getAllCategories();
         return CategoryResource::collection($categories);
