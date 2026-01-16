@@ -73,7 +73,17 @@ export const useCartStore = defineStore('cart', () => {
 
   // Update item quantity
   const updateQuantity = async (itemId, quantity) => {
-    loading.value = true
+    // Optimistic update - update UI immediately
+    const previousItems = [...items.value]
+    const itemIndex = items.value.findIndex(item => item.id === itemId)
+    
+    if (itemIndex !== -1) {
+      items.value[itemIndex] = {
+        ...items.value[itemIndex],
+        quantity: quantity
+      }
+    }
+
     try {
       const response = await apiClient.put(`/cart/${itemId}`, {
         quantity: quantity
@@ -87,10 +97,10 @@ export const useCartStore = defineStore('cart', () => {
         items.value = response.data.data?.items || []
       }
     } catch (error) {
+      // Revert to previous state on error
+      items.value = previousItems
       console.error('Error updating cart:', error)
       throw error
-    } finally {
-      loading.value = false
     }
   }
 

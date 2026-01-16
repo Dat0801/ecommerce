@@ -40,7 +40,7 @@ class CartService
     {
         return DB::transaction(function () use ($productId, $quantity, $userId, $sessionId) {
             // Get product
-            $product = $this->productRepository->find($productId);
+            $product = $this->productRepository->getById($productId);
 
             if (!$product) {
                 throw new \Exception('Product not found');
@@ -143,6 +143,11 @@ class CartService
         return [
             'id' => $cart->id,
             'items' => $cart->items->map(function ($item) {
+                // Skip items with deleted products
+                if (!$item->product) {
+                    return null;
+                }
+                
                 return [
                     'id' => $item->id,
                     'product_id' => $item->product_id,
@@ -162,7 +167,7 @@ class CartService
                     'price' => $item->price,
                     'subtotal' => $item->subtotal,
                 ];
-            }),
+            })->filter(),
             'total_items' => $cart->total_items,
             'total' => $cart->total,
         ];

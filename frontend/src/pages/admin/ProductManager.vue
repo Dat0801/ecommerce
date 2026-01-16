@@ -1,74 +1,132 @@
 <template>
-  <div class="bg-white rounded-xl shadow-sm border border-gray-100">
-    <div class="p-6 border-b border-gray-100 flex justify-between items-center">
-      <h3 class="text-lg font-semibold text-gray-800">Products</h3>
+  <div class="bg-white/90 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20">
+    <div class="p-6 border-b-2 border-gradient-to-r from-indigo-100 to-purple-100 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+          </svg>
+        </div>
+        <div>
+          <h3 class="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Products</h3>
+          <p class="text-sm text-gray-600">Manage your product inventory</p>
+        </div>
+      </div>
       <button 
         @click="openCreateModal"
-        class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+        class="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:shadow-2xl transition-all font-bold transform hover:scale-105"
       >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+        </svg>
         Add Product
       </button>
     </div>
     <div class="p-6">
-      <div v-if="loading" class="text-center py-8 text-gray-500">Loading...</div>
-      <div v-else-if="error" class="text-center py-8 text-red-500">{{ error }}</div>
-      <div v-else class="overflow-x-auto">
+      <div v-if="loading" class="flex flex-col items-center justify-center py-16">
+        <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-purple-600 mb-4"></div>
+        <p class="text-gray-600 font-medium">Loading products...</p>
+      </div>
+      <div v-else-if="error" class="text-center py-16">
+        <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        </div>
+        <p class="text-red-600 font-semibold">{{ error }}</p>
+      </div>
+      <div v-else class="overflow-x-auto rounded-xl border border-gray-200">
         <table class="w-full text-left">
           <thead>
-            <tr class="border-b border-gray-100 text-gray-500 text-sm">
-              <th class="pb-3 pl-2">ID</th>
-              <th class="pb-3">Name</th>
-              <th class="pb-3">SKU</th>
-              <th class="pb-3">Category</th>
-              <th class="pb-3">Price</th>
-              <th class="pb-3">Stock</th>
-              <th class="pb-3">Status</th>
-              <th class="pb-3 text-right pr-2">Actions</th>
+            <tr class="bg-gradient-to-r from-purple-50 to-pink-50 border-b-2 border-purple-200">
+              <th class="pb-4 pt-4 pl-4 text-sm font-bold text-gray-700 uppercase tracking-wider">ID</th>
+              <th class="pb-4 pt-4 text-sm font-bold text-gray-700 uppercase tracking-wider">Product</th>
+              <th class="pb-4 pt-4 text-sm font-bold text-gray-700 uppercase tracking-wider">Category</th>
+              <th class="pb-4 pt-4 text-sm font-bold text-gray-700 uppercase tracking-wider">Price</th>
+              <th class="pb-4 pt-4 text-sm font-bold text-gray-700 uppercase tracking-wider">Stock</th>
+              <th class="pb-4 pt-4 text-sm font-bold text-gray-700 uppercase tracking-wider">Status</th>
+              <th class="pb-4 pt-4 pr-4 text-sm font-bold text-gray-700 uppercase tracking-wider text-right">Actions</th>
             </tr>
           </thead>
-          <tbody class="text-gray-600">
-            <tr v-for="product in products" :key="product.id" class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-              <td class="py-4 pl-2">{{ product.id }}</td>
-              <td class="py-4 font-medium text-gray-800">{{ product.name }}</td>
-              <td class="py-4">{{ product.sku }}</td>
-              <td class="py-4">{{ product.category ? product.category.name : '-' }}</td>
-              <td class="py-4">${{ product.price }}</td>
-              <td class="py-4">{{ product.stock }}</td>
+          <tbody class="text-gray-600 divide-y divide-gray-100">
+            <tr v-for="product in products" :key="product.id" class="hover:bg-gradient-to-r hover:from-purple-50/50 hover:to-pink-50/50 transition-all">
+              <td class="py-4 pl-4">
+                <span class="inline-flex items-center justify-center w-8 h-8 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg text-sm font-bold text-gray-700">
+                  {{ product.id }}
+                </span>
+              </td>
+              <td class="py-4">
+                <div>
+                  <p class="font-bold text-gray-900">{{ product.name }}</p>
+                  <p class="text-xs text-gray-500 mt-1">SKU: {{ product.sku }}</p>
+                </div>
+              </td>
+              <td class="py-4">
+                <span v-if="product.category" class="inline-flex items-center gap-1 px-3 py-1 bg-indigo-100 text-indigo-700 rounded-lg text-sm font-medium">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                  </svg>
+                  {{ product.category.name }}
+                </span>
+                <span v-else class="text-gray-400">-</span>
+              </td>
+              <td class="py-4">
+                <span class="text-lg font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                  ${{ product.price }}
+                </span>
+              </td>
+              <td class="py-4">
+                <span class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-bold" :class="product.stock > 10 ? 'bg-green-100 text-green-700' : product.stock > 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                  </svg>
+                  {{ product.stock }}
+                </span>
+              </td>
               <td class="py-4">
                 <span 
                   :class="{
-                    'bg-green-100 text-green-800': product.status === 'active',
-                    'bg-gray-100 text-gray-800': product.status === 'inactive',
-                    'bg-yellow-100 text-yellow-800': product.status === 'draft'
+                    'bg-gradient-to-r from-green-500 to-emerald-500 text-white': product.status === 'active',
+                    'bg-gradient-to-r from-gray-400 to-gray-500 text-white': product.status === 'inactive',
+                    'bg-gradient-to-r from-yellow-400 to-orange-500 text-white': product.status === 'draft'
                   }"
-                  class="px-2 py-1 rounded-full text-xs font-medium"
+                  class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold shadow-md"
                 >
                   {{ product.status }}
                 </span>
               </td>
-              <td class="py-4 text-right pr-2">
-                <button 
-                  @click="openEditModal(product)"
-                  class="text-blue-600 hover:text-blue-800 mr-3"
-                  title="Edit"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
-                  </svg>
-                </button>
-                <button 
-                  @click="deleteProduct(product.id)"
-                  class="text-red-600 hover:text-red-800"
-                  title="Delete"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                  </svg>
-                </button>
+              <td class="py-4 pr-4 text-right">
+                <div class="flex items-center justify-end gap-2">
+                  <button 
+                    @click="openEditModal(product)"
+                    class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all hover:shadow-md"
+                    title="Edit"
+                  >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+                    </svg>
+                  </button>
+                  <button 
+                    @click="deleteProduct(product.id)"
+                    class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all hover:shadow-md"
+                    title="Delete"
+                  >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                  </button>
+                </div>
               </td>
             </tr>
             <tr v-if="products.length === 0">
-                <td colspan="8" class="py-8 text-center text-gray-500">No products found.</td>
+                <td colspan="7" class="py-16 text-center">
+                  <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                    </svg>
+                  </div>
+                  <p class="text-gray-500 font-semibold">No products found</p>
+                </td>
             </tr>
           </tbody>
         </table>
@@ -76,37 +134,65 @@
     </div>
 
     <!-- Modal -->
-    <div v-if="showModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-      <div class="bg-white rounded-xl shadow-lg w-full max-w-2xl p-6 my-8">
-        <h3 class="text-xl font-bold mb-4">{{ isEditing ? 'Edit Product' : 'Add Product' }}</h3>
+    <div v-if="showModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 overflow-y-auto p-4">
+      <div class="bg-white/95 backdrop-blur-lg rounded-2xl shadow-2xl w-full max-w-3xl my-8 border border-white/20">
+        <div class="p-6 border-b-2 border-gradient-to-r from-purple-100 to-pink-100">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+              </svg>
+            </div>
+            <h3 class="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+              {{ isEditing ? 'Edit Product' : 'Add New Product' }}
+            </h3>
+          </div>
+        </div>
         
-        <form @submit.prevent="submitForm">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="mb-4">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+        <form @submit.prevent="submitForm" class="p-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label class="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+                <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                </svg>
+                Product Name
+              </label>
               <input 
                 v-model="form.name" 
                 type="text" 
-                class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                placeholder="Enter product name"
                 required
               />
             </div>
 
-            <div class="mb-4">
-              <label class="block text-sm font-medium text-gray-700 mb-1">SKU</label>
+            <div>
+              <label class="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+                <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"></path>
+                </svg>
+                SKU
+              </label>
               <input 
                 v-model="form.sku" 
                 type="text" 
-                class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                placeholder="Enter SKU"
                 required
               />
             </div>
 
-            <div class="mb-4">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+            <div>
+              <label class="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+                <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                </svg>
+                Category
+              </label>
               <select 
                 v-model="form.category_id" 
-                class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                 required
               >
                 <option :value="null" disabled>Select Category</option>
@@ -116,34 +202,51 @@
               </select>
             </div>
 
-            <div class="mb-4">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Price</label>
+            <div>
+              <label class="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+                <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Price
+              </label>
               <input 
                 v-model="form.price" 
                 type="number" 
                 step="0.01"
                 min="0"
-                class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                placeholder="0.00"
                 required
               />
             </div>
 
-            <div class="mb-4">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Stock</label>
+            <div>
+              <label class="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+                <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                </svg>
+                Stock
+              </label>
               <input 
                 v-model="form.stock" 
                 type="number" 
                 min="0"
-                class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                placeholder="0"
                 required
               />
             </div>
 
-            <div class="mb-4">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <div>
+              <label class="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+                <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Status
+              </label>
               <select 
                 v-model="form.status" 
-                class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
               >
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
@@ -152,29 +255,39 @@
             </div>
           </div>
 
-          <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+          <div class="mt-5">
+            <label class="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+              <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path>
+              </svg>
+              Description
+            </label>
             <textarea 
               v-model="form.description" 
               rows="3"
-              class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+              placeholder="Enter product description"
             ></textarea>
           </div>
 
-          <div class="flex justify-end gap-3 mt-6">
+          <div class="flex justify-end gap-3 mt-6 pt-6 border-t-2 border-gray-100">
             <button 
               type="button" 
               @click="closeModal"
-              class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              class="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all font-semibold"
             >
               Cancel
             </button>
             <button 
               type="submit" 
-              class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              class="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:shadow-2xl transition-all font-bold transform hover:scale-105"
               :disabled="submitting"
             >
-              {{ submitting ? 'Saving...' : 'Save' }}
+              <svg v-if="!submitting" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+              <span v-if="submitting" class="animate-spin mr-2">⏳</span>
+              {{ submitting ? 'Saving...' : 'Save Product' }}
             </button>
           </div>
         </form>

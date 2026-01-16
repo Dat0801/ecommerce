@@ -13,6 +13,11 @@ import AdminLayout from './layouts/AdminLayout.vue'
 const route = useRoute()
 
 const layout = computed(() => {
-  return route.meta.layout === 'admin' ? AdminLayout : DefaultLayout
+  // Admin routes use AdminLayout
+  if (route.meta.layout === 'admin') {
+    return AdminLayout
+  }
+  // All other routes (client) use DefaultLayout
+  return DefaultLayout
 })
 </script>
