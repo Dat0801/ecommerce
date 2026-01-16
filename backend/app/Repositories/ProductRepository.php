@@ -9,7 +9,8 @@ class ProductRepository implements ProductRepositoryInterface
 {
     public function getAll()
     {
-        return Product::with('category')->paginate(10);
+        $perPage = request('per_page', 12);
+        return Product::with('category')->paginate($perPage);
     }
 
     public function getById($id)
@@ -58,6 +59,7 @@ class ProductRepository implements ProductRepositoryInterface
             $query->where('price', '<=', $filters['max_price']);
         }
 
-        return $query->paginate(10);
+        $perPage = $filters['per_page'] ?? 12;
+        return $query->paginate($perPage);
     }
 }

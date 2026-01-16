@@ -12,34 +12,43 @@ const routes = [
     path: '/',
     name: 'Home',
     component: Home,
+    meta: { layout: 'default' }
   },
   {
     path: '/products',
     name: 'ProductList',
     component: ProductList,
+    meta: { layout: 'default' }
   },
   {
     path: '/products/:id',
     name: 'ProductDetail',
     component: ProductDetail,
+    meta: { layout: 'default' }
   },
   {
     path: '/login',
     name: 'Login',
     component: Login,
-    meta: { guest: true }
+    meta: { guest: true, layout: 'default' }
   },
   {
     path: '/register',
     name: 'Register',
     component: Register,
-    meta: { guest: true }
+    meta: { guest: true, layout: 'default' }
   },
   {
     path: '/cart',
     name: 'Cart',
     component: Cart,
-    meta: { requiresAuth: true }
+    meta: { layout: 'default' }
+  },
+  {
+    path: '/profile',
+    name: 'Profile',
+    component: () => import('../pages/Profile.vue'),
+    meta: { requiresAuth: true, layout: 'default' }
   },
   {
     path: '/admin',
