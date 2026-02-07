@@ -26,4 +26,30 @@ class Product extends Model
     {
         return $this->belongsTo(Category::class);
     }
+
+    public function reviews()
+    {
+        return $this->hasMany(Review::class);
+    }
+
+    public function approvedReviews()
+    {
+        return $this->hasMany(Review::class)->where('is_approved', true);
+    }
+
+    /**
+     * Get average rating
+     */
+    public function getAverageRatingAttribute()
+    {
+        return $this->approvedReviews()->avg('rating') ?? 0;
+    }
+
+    /**
+     * Get total reviews count
+     */
+    public function getTotalReviewsAttribute()
+    {
+        return $this->approvedReviews()->count();
+    }
 }

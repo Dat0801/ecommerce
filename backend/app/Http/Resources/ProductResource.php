@@ -26,6 +26,8 @@ class ProductResource extends JsonResource
             'status' => $this->status,
             'description' => $this->description,
             'image' => $this->image,
+            'average_rating' => round($this->average_rating, 2),
+            'total_reviews' => $this->total_reviews,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

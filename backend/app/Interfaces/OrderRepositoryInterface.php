@@ -14,5 +14,7 @@ interface OrderRepositoryInterface
 
     public function getAll($filters = [], $perPage = 10);
 
-    public function updateStatus($orderId, $status);
+    public function updateStatus($orderId, $status, $additionalData = []);
+
+    public function getByTrackingNumber($trackingNumber);
 }

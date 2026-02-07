@@ -18,11 +18,16 @@ class AuthService
     public function register(array $data)
     {
         $user = $this->authRepository->create($data);
+        
+        // Send email verification notification
+        $user->sendEmailVerificationNotification();
+        
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return [
             'user' => $user,
             'token' => $token,
+            'message' => 'Registration successful! Please check your email to verify your account.',
         ];
     }
 
@@ -38,14 +43,81 @@ class AuthService
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        return [
+        $response = [
             'user' => $user,
             'token' => $token,
         ];
+
+        // Add verification status (users can still login, but we track verification)
+        if (!$user->hasVerifiedEmail()) {
+            $response['email_verified'] = false;
+            $response['message'] = 'Please verify your email address. Check your inbox for the verification link.';
+        } else {
+            $response['email_verified'] = true;
+        }
+
+        return $response;
     }
 
     public function logout($user)
     {
         $user->currentAccessToken()->delete();
+    }
+
+    public function resendVerificationEmail($user)
+    {
+        if ($user->hasVerifiedEmail()) {
+            throw ValidationException::withMessages([
+                'email' => ['Email already verified.'],
+            ]);
+        }
+
+        $user->sendEmailVerificationNotification();
+
+        return [
+            'message' => 'Verification email has been sent. Please check your inbox.',
+        ];
+    }
+
+    public function sendPasswordResetLink(array $data)
+    {
+        $user = $this->authRepository->findByEmail($data['email']);
+
+        if (!$user) {
+            // Don't reveal if email exists for security
+            return [
+                'message' => 'If that email address exists in our system, we have sent a password reset link.',
+            ];
+        }
+
+        $status = \Illuminate\Support\Facades\Password::sendResetLink(
+            ['email' => $data['email']]
+        );
+
+        return [
+            'message' => 'If that email address exists in our system, we have sent a password reset link.',
+            'status' => $status === \Illuminate\Support\Facades\Password::RESET_LINK_SENT,
+        ];
+    }
+
+    public function resetPassword(array $data)
+    {
+        $status = \Illuminate\Support\Facades\Password::reset(
+            $data,
+            function ($user, $password) {
+                $user->password = Hash::make($password);
+                $user->save();
+            }
+        );
+
+        if ($status === \Illuminate\Support\Facades\Password::PASSWORD_RESET) {
+            return [
+                'message' => 'Password has been reset successfully.',
+            ];
+        }
+
+        throw ValidationException::withMessages([
+            'email' => [__($status)],
+        ]);
     }
 }

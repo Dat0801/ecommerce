@@ -24,7 +24,9 @@ class OrderController extends Controller
             'shipping_phone' => 'nullable|string|max:50',
             'shipping_address' => 'required|string',
             'note' => 'nullable|string',
-            'payment_method' => 'nullable|string',
+            'payment_method' => 'nullable|string|in:cod,stripe,paypal',
+            'payment_data' => 'nullable|array',
+            'coupon_code' => 'nullable|string|max:50',
         ]);
 
         try {
@@ -108,10 +110,20 @@ class OrderController extends Controller
     {
         $validated = $request->validate([
             'status' => 'required|in:pending,paid,processing,shipped,completed,cancelled',
+            'tracking_number' => 'nullable|string|max:255',
+            'tracking_url' => 'nullable|url|max:500',
         ]);
 
         try {
-            $order = $this->orderService->updateStatus($orderId, $validated['status']);
+            $trackingData = null;
+            if ($validated['status'] === 'shipped' && isset($validated['tracking_number'])) {
+                $trackingData = [
+                    'tracking_number' => $validated['tracking_number'],
+                    'tracking_url' => $validated['tracking_url'] ?? null,
+                ];
+            }
+
+            $order = $this->orderService->updateStatus($orderId, $validated['status'], $trackingData);
 
             return response()->json([
                 'success' => true,
@@ -123,6 +135,23 @@ class OrderController extends Controller
                 'success' => false,
                 'message' => $e->getMessage(),
             ], 400);
+        }
+    }
+
+    public function trackOrder(Request $request, $trackingNumber)
+    {
+        try {
+            $order = $this->orderService->getOrderByTrackingNumber($trackingNumber);
+
+            return response()->json([
+                'success' => true,
+                'data' => $order,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 404);
         }
     }
 }

@@ -13,15 +13,27 @@ class Order extends Model
         'user_id',
         'session_id',
         'total_items',
+        'subtotal',
+        'discount_amount',
+        'coupon_code',
         'total',
         'status',
+        'tracking_number',
+        'tracking_url',
+        'shipped_at',
         'payment_method',
         'payment_status',
+        'payment_transaction_id',
+        'payment_metadata',
         'shipping_name',
         'shipping_email',
         'shipping_phone',
         'shipping_address',
         'note',
+    ];
+
+    protected $casts = [
+        'shipped_at' => 'datetime',
     ];
 
     public function user()

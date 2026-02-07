@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AddressController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CartController;
 use App\Http\Controllers\Api\V1\CategoryController;
@@ -7,6 +8,9 @@ use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\AdminDashboardController;
 use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\ProductController;
+use App\Http\Controllers\Api\V1\CouponController;
+use App\Http\Controllers\Api\V1\ReviewController;
+use App\Http\Controllers\Api\V1\WishlistController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -18,10 +22,22 @@ Route::prefix('v1')->group(function () {
     Route::get('/categories/{id}', [CategoryController::class, 'show']);
     Route::get('/products', [ProductController::class, 'index']);
     Route::get('/products/{id}', [ProductController::class, 'show']);
+    
+    // Public Reviews
+    Route::get('/products/{productId}/reviews', [ReviewController::class, 'index']);
+
+    // Public Order Tracking
+    Route::get('/orders/track/{trackingNumber}', [OrderController::class, 'trackOrder']);
+
+    // Public Coupon Validation
+    Route::post('/coupons/validate', [CouponController::class, 'validateCoupon']);
 
     // Public Auth Routes
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/email/verify', [AuthController::class, 'verifyEmail'])->name('verification.verify');
+    Route::post('/password/forgot', [AuthController::class, 'forgotPassword'])->name('password.email');
+    Route::post('/password/reset', [AuthController::class, 'resetPassword'])->name('password.reset');
 
     // Checkout
     Route::post('/checkout', [OrderController::class, 'checkout']);
@@ -37,10 +53,27 @@ Route::prefix('v1')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/user', [AuthController::class, 'user']);
+        Route::post('/email/verification-notification', [AuthController::class, 'resendVerificationEmail']);
 
         // Orders (customer)
         Route::get('/orders', [OrderController::class, 'index']);
         Route::get('/orders/{id}', [OrderController::class, 'show']);
+
+        // Address Management
+        Route::apiResource('addresses', AddressController::class);
+        Route::post('/addresses/{id}/set-default', [AddressController::class, 'setDefault']);
+
+        // Reviews
+        Route::post('/products/{productId}/reviews', [ReviewController::class, 'store']);
+        Route::put('/reviews/{id}', [ReviewController::class, 'update']);
+        Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);
+
+        // Wishlist
+        Route::get('/wishlist', [WishlistController::class, 'index']);
+        Route::post('/wishlist', [WishlistController::class, 'store']);
+        Route::delete('/wishlist/{productId}', [WishlistController::class, 'destroy']);
+        Route::get('/wishlist/check/{productId}', [WishlistController::class, 'check']);
+        Route::get('/wishlist/count', [WishlistController::class, 'count']);
 
         // Cart merge (after login)
         Route::post('/cart/merge', [CartController::class, 'merge']);
@@ -62,6 +95,13 @@ Route::prefix('v1')->group(function () {
             // Order Management
             Route::get('/orders', [OrderController::class, 'adminIndex']);
             Route::put('/orders/{id}/status', [OrderController::class, 'adminUpdateStatus']);
+
+            // Review Management
+            Route::post('/reviews/{id}/approve', [ReviewController::class, 'approve']);
+            Route::post('/reviews/{id}/reject', [ReviewController::class, 'reject']);
+
+            // Coupon Management
+            Route::apiResource('coupons', CouponController::class)->except(['show']);
         });
 
         // Customer Routes

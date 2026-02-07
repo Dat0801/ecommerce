@@ -41,20 +41,66 @@ class OrderService
                 }
             }
 
+            $paymentMethod = $data['payment_method'] ?? 'cod';
+            $paymentStatus = ($paymentMethod === 'cod') ? 'pending' : 'unpaid';
+
+            // Calculate subtotal
+            $subtotal = $cart->total;
+            $discountAmount = 0;
+            $couponCode = null;
+
+            // Apply coupon if provided
+            if (isset($data['coupon_code']) && !empty($data['coupon_code'])) {
+                $coupon = \App\Models\Coupon::where('code', $data['coupon_code'])->first();
+                
+                if ($coupon && $coupon->isValid() && $coupon->canBeUsedBy($userId)) {
+                    if ($subtotal >= $coupon->minimum_amount) {
+                        $discountAmount = $coupon->calculateDiscount($subtotal);
+                        $couponCode = $coupon->code;
+                        
+                        // Record coupon usage
+                        \App\Models\CouponUsage::create([
+                            'coupon_id' => $coupon->id,
+                            'user_id' => $userId,
+                            'order_id' => null, // Will be updated after order creation
+                            'discount_amount' => $discountAmount,
+                        ]);
+                        
+                        // Increment coupon usage count
+                        $coupon->incrementUsage();
+                    }
+                }
+            }
+
+            $total = $subtotal - $discountAmount;
+
             $order = $this->orders->create([
                 'user_id' => $userId,
                 'session_id' => $userId ? null : $sessionId,
                 'total_items' => $cart->total_items,
-                'total' => $cart->total,
+                'subtotal' => $subtotal,
+                'discount_amount' => $discountAmount,
+                'coupon_code' => $couponCode,
+                'total' => $total,
                 'status' => 'pending',
-                'payment_method' => $data['payment_method'] ?? 'cod',
-                'payment_status' => 'unpaid',
+                'payment_method' => $paymentMethod,
+                'payment_status' => $paymentStatus,
                 'shipping_name' => $data['shipping_name'],
                 'shipping_email' => $data['shipping_email'] ?? null,
                 'shipping_phone' => $data['shipping_phone'] ?? null,
                 'shipping_address' => $data['shipping_address'],
                 'note' => $data['note'] ?? null,
             ]);
+
+            // Update coupon usage with order_id
+            if ($couponCode) {
+                \App\Models\CouponUsage::where('coupon_id', $coupon->id)
+                    ->where('user_id', $userId)
+                    ->whereNull('order_id')
+                    ->latest()
+                    ->first()
+                    ->update(['order_id' => $order->id]);
+            }
 
             foreach ($cart->items as $item) {
                 $this->orders->addItem($order->id, [
@@ -69,12 +115,41 @@ class OrderService
                 $item->product->decrement('stock', $item->quantity);
             }
 
+            // Process payment if payment data is provided (for online payments)
+            if (isset($data['payment_data']) && $paymentMethod !== 'cod') {
+                $paymentService = app(\App\Services\PaymentService::class);
+                try {
+                    $paymentResult = $paymentService->processPayment($order, $data['payment_data']);
+                    $order->refresh();
+                } catch (\Exception $e) {
+                    // If payment fails, order remains unpaid
+                    // In production, you might want to handle this differently
+                    throw new \Exception('Payment processing failed: ' . $e->getMessage());
+                }
+            }
+
             // Clear cart after checkout
             $this->cartRepository->clearCart($cart->id);
 
-            return $this->formatOrderResponse(
+            $orderResponse = $this->formatOrderResponse(
                 $this->orders->getById($order->id)
             );
+
+            // Send order confirmation email
+            if ($order->shipping_email) {
+                try {
+                    \Illuminate\Support\Facades\Notification::route('mail', $order->shipping_email)
+                        ->notify(new \App\Notifications\OrderConfirmation($order));
+                } catch (\Exception $e) {
+                    // Log error but don't fail the checkout
+                    \Illuminate\Support\Facades\Log::error('Failed to send order confirmation email', [
+                        'order_id' => $order->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            return $orderResponse;
         });
     }
 
@@ -107,10 +182,74 @@ class OrderService
         return $orders;
     }
 
-    public function updateStatus($orderId, $status)
+    public function updateStatus($orderId, $status, $trackingData = null)
     {
-        $order = $this->orders->updateStatus($orderId, $status);
+        $order = $this->orders->getById($orderId);
+        $oldStatus = $order->status;
+        
+        $updateData = ['status' => $status];
+        
+        // If status is 'shipped', add tracking information
+        if ($status === 'shipped' && $trackingData) {
+            $updateData['tracking_number'] = $trackingData['tracking_number'] ?? null;
+            $updateData['tracking_url'] = $trackingData['tracking_url'] ?? null;
+            $updateData['shipped_at'] = now();
+        }
+        
+        $order = $this->orders->updateStatus($orderId, $status, $updateData);
+        $order = $order->fresh(['items.product']);
+
+        // Send email notifications
+        if ($order->shipping_email && $oldStatus !== $status) {
+            try {
+                // Send status update notification
+                \Illuminate\Support\Facades\Notification::route('mail', $order->shipping_email)
+                    ->notify(new \App\Notifications\OrderStatusUpdate($order, $oldStatus, $status));
+
+                // Send special notification for shipped orders
+                if ($status === 'shipped') {
+                    \Illuminate\Support\Facades\Notification::route('mail', $order->shipping_email)
+                        ->notify(new \App\Notifications\OrderShipped($order));
+                }
+            } catch (\Exception $e) {
+                // Log error but don't fail the status update
+                \Illuminate\Support\Facades\Log::error('Failed to send order status update email', [
+                    'order_id' => $orderId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return $this->formatOrderResponse($order);
+    }
+
+    public function updateTracking($orderId, $trackingNumber, $trackingUrl = null)
+    {
+        $order = $this->orders->getById($orderId);
+        
+        if (!$order) {
+            throw new \Exception('Order not found');
+        }
+
+        $order->update([
+            'tracking_number' => $trackingNumber,
+            'tracking_url' => $trackingUrl,
+            'status' => $order->status === 'pending' ? 'shipped' : $order->status,
+            'shipped_at' => $order->shipped_at ?? now(),
+        ]);
+
         return $this->formatOrderResponse($order->fresh(['items.product']));
+    }
+
+    public function getOrderByTrackingNumber($trackingNumber)
+    {
+        $order = $this->orders->getByTrackingNumber($trackingNumber);
+        
+        if (!$order) {
+            throw new \Exception('Order not found');
+        }
+
+        return $this->formatOrderResponse($order);
     }
 
     protected function formatOrderResponse($order)
@@ -119,10 +258,17 @@ class OrderService
             'id' => $order->id,
             'user_id' => $order->user_id,
             'total_items' => $order->total_items,
+            'subtotal' => $order->subtotal ?? $order->total,
+            'discount_amount' => $order->discount_amount ?? 0,
+            'coupon_code' => $order->coupon_code,
             'total' => $order->total,
             'status' => $order->status,
+            'tracking_number' => $order->tracking_number,
+            'tracking_url' => $order->tracking_url,
+            'shipped_at' => $order->shipped_at,
             'payment_method' => $order->payment_method,
             'payment_status' => $order->payment_status,
+            'payment_transaction_id' => $order->payment_transaction_id,
             'shipping_name' => $order->shipping_name,
             'shipping_email' => $order->shipping_email,
             'shipping_phone' => $order->shipping_phone,
