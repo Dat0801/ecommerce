@@ -27,6 +27,7 @@ class OrderController extends Controller
             'payment_method' => 'nullable|string|in:cod,stripe,paypal',
             'payment_data' => 'nullable|array',
             'coupon_code' => 'nullable|string|max:50',
+            'shipping_method_id' => 'nullable|exists:shipping_methods,id',
         ]);
 
         try {
@@ -152,6 +153,29 @@ class OrderController extends Controller
                 'success' => false,
                 'message' => $e->getMessage(),
             ], 404);
+        }
+    }
+
+    public function cancel(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        try {
+            $userId = auth('sanctum')->id();
+            $order = $this->orderService->cancelOrder($id, $userId, $validated['reason'] ?? null);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Order cancelled successfully',
+                'data' => $order,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 400);
         }
     }
 }

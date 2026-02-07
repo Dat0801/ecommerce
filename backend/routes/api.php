@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\CouponController;
 use App\Http\Controllers\Api\V1\ReviewController;
+use App\Http\Controllers\Api\V1\ShippingController;
 use App\Http\Controllers\Api\V1\WishlistController;
 use Illuminate\Support\Facades\Route;
 
@@ -31,6 +32,10 @@ Route::prefix('v1')->group(function () {
 
     // Public Coupon Validation
     Route::post('/coupons/validate', [CouponController::class, 'validateCoupon']);
+
+    // Public Shipping Methods
+    Route::get('/shipping/methods', [ShippingController::class, 'getMethods']);
+    Route::post('/shipping/calculate', [ShippingController::class, 'calculateCost']);
 
     // Public Auth Routes
     Route::post('/register', [AuthController::class, 'register']);
@@ -58,6 +63,7 @@ Route::prefix('v1')->group(function () {
         // Orders (customer)
         Route::get('/orders', [OrderController::class, 'index']);
         Route::get('/orders/{id}', [OrderController::class, 'show']);
+        Route::post('/orders/{id}/cancel', [OrderController::class, 'cancel']);
 
         // Address Management
         Route::apiResource('addresses', AddressController::class);
@@ -92,6 +98,11 @@ Route::prefix('v1')->group(function () {
             Route::put('/products/{id}', [ProductController::class, 'update']);
             Route::delete('/products/{id}', [ProductController::class, 'destroy']);
 
+            // Product Image Management
+            Route::delete('/product-images/{id}', [\App\Http\Controllers\Api\V1\ProductImageController::class, 'destroy']);
+            Route::post('/product-images/{id}/set-primary', [\App\Http\Controllers\Api\V1\ProductImageController::class, 'setPrimary']);
+            Route::post('/product-images/reorder', [\App\Http\Controllers\Api\V1\ProductImageController::class, 'reorder']);
+
             // Order Management
             Route::get('/orders', [OrderController::class, 'adminIndex']);
             Route::put('/orders/{id}/status', [OrderController::class, 'adminUpdateStatus']);
@@ -102,6 +113,9 @@ Route::prefix('v1')->group(function () {
 
             // Coupon Management
             Route::apiResource('coupons', CouponController::class)->except(['show']);
+
+            // Shipping Method Management
+            Route::apiResource('shipping-methods', ShippingMethodController::class);
         });
 
         // Customer Routes

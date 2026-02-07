@@ -52,4 +52,14 @@ class Product extends Model
     {
         return $this->approvedReviews()->count();
     }
+
+    public function images()
+    {
+        return $this->hasMany(ProductImage::class)->orderBy('sort_order')->orderBy('is_primary', 'desc');
+    }
+
+    public function primaryImage()
+    {
+        return $this->hasOne(ProductImage::class)->where('is_primary', true);
+    }
 }

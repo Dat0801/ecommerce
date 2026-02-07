@@ -16,6 +16,8 @@ class Order extends Model
         'subtotal',
         'discount_amount',
         'coupon_code',
+        'shipping_method_id',
+        'shipping_cost',
         'total',
         'status',
         'tracking_number',
@@ -44,5 +46,10 @@ class Order extends Model
     public function items()
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    public function shippingMethod()
+    {
+        return $this->belongsTo(ShippingMethod::class);
     }
 }

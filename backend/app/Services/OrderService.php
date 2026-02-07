@@ -72,7 +72,30 @@ class OrderService
                 }
             }
 
-            $total = $subtotal - $discountAmount;
+            // Calculate shipping cost
+            $shippingCost = 0;
+            $shippingMethodId = null;
+            
+            if (isset($data['shipping_method_id'])) {
+                $shippingService = app(\App\Services\ShippingService::class);
+                try {
+                    $shippingCost = $shippingService->calculateShippingCost(
+                        $data['shipping_method_id'],
+                        $subtotal,
+                        $cart->total_items,
+                        0 // totalWeight - can be added later if products have weight
+                    );
+                    $shippingMethodId = $data['shipping_method_id'];
+                } catch (\Exception $e) {
+                    // If shipping method invalid, use default (free shipping)
+                    \Illuminate\Support\Facades\Log::warning('Invalid shipping method', [
+                        'method_id' => $data['shipping_method_id'],
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            $total = $subtotal - $discountAmount + $shippingCost;
 
             $order = $this->orders->create([
                 'user_id' => $userId,
@@ -81,6 +104,8 @@ class OrderService
                 'subtotal' => $subtotal,
                 'discount_amount' => $discountAmount,
                 'coupon_code' => $couponCode,
+                'shipping_method_id' => $shippingMethodId,
+                'shipping_cost' => $shippingCost,
                 'total' => $total,
                 'status' => 'pending',
                 'payment_method' => $paymentMethod,
@@ -252,6 +277,52 @@ class OrderService
         return $this->formatOrderResponse($order);
     }
 
+    public function cancelOrder($orderId, $userId, $reason = null)
+    {
+        $order = $this->orders->getById($orderId);
+
+        // Check authorization
+        if (!$order->user_id || $order->user_id !== $userId) {
+            throw new \Exception('Unauthorized access to this order');
+        }
+
+        // Check if order can be cancelled
+        $cancellableStatuses = ['pending', 'paid', 'processing'];
+        if (!in_array($order->status, $cancellableStatuses)) {
+            throw new \Exception('Order cannot be cancelled. Current status: ' . $order->status);
+        }
+
+        // Check if order has been shipped
+        if ($order->tracking_number) {
+            throw new \Exception('Order has already been shipped and cannot be cancelled.');
+        }
+
+        return DB::transaction(function () use ($order, $reason) {
+            // Restore product stock
+            foreach ($order->items as $item) {
+                if ($item->product) {
+                    $item->product->increment('stock', $item->quantity);
+                }
+            }
+
+            // Update order status
+            $order->update([
+                'status' => 'cancelled',
+                'note' => $order->note ? $order->note . "\n\nCancelled: " . ($reason ?? 'No reason provided') : 'Cancelled: ' . ($reason ?? 'No reason provided'),
+            ]);
+
+            // Refund payment if paid
+            if ($order->payment_status === 'paid') {
+                $order->update(['payment_status' => 'refunded']);
+                
+                // In production, you would integrate with payment gateway for refund
+                // For now, we just mark it as refunded
+            }
+
+            return $this->formatOrderResponse($order->fresh(['items.product']));
+        });
+    }
+
     protected function formatOrderResponse($order)
     {
         return [
@@ -261,6 +332,12 @@ class OrderService
             'subtotal' => $order->subtotal ?? $order->total,
             'discount_amount' => $order->discount_amount ?? 0,
             'coupon_code' => $order->coupon_code,
+            'shipping_method' => $order->shippingMethod ? [
+                'id' => $order->shippingMethod->id,
+                'name' => $order->shippingMethod->name,
+                'code' => $order->shippingMethod->code,
+            ] : null,
+            'shipping_cost' => $order->shipping_cost ?? 0,
             'total' => $order->total,
             'status' => $order->status,
             'tracking_number' => $order->tracking_number,

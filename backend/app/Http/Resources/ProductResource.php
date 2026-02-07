@@ -26,6 +26,16 @@ class ProductResource extends JsonResource
             'status' => $this->status,
             'description' => $this->description,
             'image' => $this->image,
+            'images' => $this->whenLoaded('images', function () {
+                return $this->images->map(function ($img) {
+                    return [
+                        'id' => $img->id,
+                        'image_path' => $img->image_path,
+                        'is_primary' => $img->is_primary,
+                        'sort_order' => $img->sort_order,
+                    ];
+                });
+            }),
             'average_rating' => round($this->average_rating, 2),
             'total_reviews' => $this->total_reviews,
             'created_at' => $this->created_at,

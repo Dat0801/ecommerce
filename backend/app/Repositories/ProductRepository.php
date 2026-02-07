@@ -10,12 +10,12 @@ class ProductRepository implements ProductRepositoryInterface
     public function getAll()
     {
         $perPage = request('per_page', 12);
-        return Product::with('category')->paginate($perPage);
+        return Product::with(['category', 'images'])->paginate($perPage);
     }
 
     public function getById($id)
     {
-        return Product::with('category')->findOrFail($id);
+        return Product::with(['category', 'images'])->findOrFail($id);
     }
 
     public function create(array $data)
@@ -37,7 +37,7 @@ class ProductRepository implements ProductRepositoryInterface
 
     public function getFiltered($filters = [])
     {
-        $query = Product::query()->with('category');
+        $query = Product::query()->with(['category', 'images']);
 
         if (isset($filters['category_id'])) {
             $query->where('category_id', $filters['category_id']);
