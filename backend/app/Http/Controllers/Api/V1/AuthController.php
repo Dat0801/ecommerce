@@ -51,4 +51,126 @@ class AuthController extends Controller
     {
         return response()->json($request->user());
     }
+
+    public function verifyEmail(Request $request)
+    {
+        $request->validate([
+            'id' => 'required',
+            'hash' => 'required',
+        ]);
+
+        $user = \App\Models\User::findOrFail($request->id);
+
+        if ($user->hasVerifiedEmail()) {
+            return response()->json([
+                'message' => 'Email already verified.',
+            ], 400);
+        }
+
+        if (!hash_equals((string) $request->hash, sha1($user->getEmailForVerification()))) {
+            return response()->json([
+                'message' => 'Invalid verification link.',
+            ], 400);
+        }
+
+        if ($user->markEmailAsVerified()) {
+            return response()->json([
+                'message' => 'Email verified successfully.',
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Failed to verify email.',
+        ], 500);
+    }
+
+    public function resendVerificationEmail(Request $request)
+    {
+        $user = $request->user();
+
+        try {
+            $result = $this->authService->resendVerificationEmail($user);
+            return response()->json($result);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    public function forgotPassword(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+        ]);
+
+        try {
+            $result = $this->authService->sendPasswordResetLink($request->all());
+            return response()->json($result);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to send password reset link.',
+            ], 500);
+        }
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'token' => 'required',
+            'email' => 'required|email',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        try {
+            $result = $this->authService->resetPassword($request->all());
+            return response()->json($result);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    public function updateProfile(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'sometimes|string|max:255',
+        ]);
+
+        try {
+            $user = $this->authService->updateProfile($request->user(), $validated);
+            return response()->json([
+                'success' => true,
+                'message' => 'Profile updated successfully',
+                'data' => $user,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update profile',
+            ], 400);
+        }
+    }
+
+    public function changePassword(Request $request)
+    {
+        $validated = $request->validate([
+            'current_password' => 'required|string',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        try {
+            $result = $this->authService->changePassword($request->user(), $validated);
+            return response()->json([
+                'success' => true,
+                'message' => $result['message'],
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
 }

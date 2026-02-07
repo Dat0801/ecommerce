@@ -50,12 +50,27 @@ class OrderRepository implements OrderRepositoryInterface
         return $query->orderByDesc('created_at')->paginate($perPage);
     }
 
-    public function updateStatus($orderId, $status)
+    public function updateStatus($orderId, $status, $additionalData = [])
     {
         $order = Order::findOrFail($orderId);
         $order->status = $status;
+        
+        // Update additional fields if provided
+        foreach ($additionalData as $key => $value) {
+            if ($key !== 'status') {
+                $order->$key = $value;
+            }
+        }
+        
         $order->save();
 
         return $order;
+    }
+
+    public function getByTrackingNumber($trackingNumber)
+    {
+        return Order::where('tracking_number', $trackingNumber)
+            ->with(['items.product', 'user'])
+            ->first();
     }
 }

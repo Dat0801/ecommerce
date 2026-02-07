@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\ProductResource;
 use App\Services\ProductService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class ProductController extends Controller
@@ -19,7 +20,17 @@ class ProductController extends Controller
 
     public function index(Request $request)
     {
-        $filters = $request->all();
+        $filters = $request->validate([
+            'search' => 'nullable|string|max:255',
+            'category_id' => 'nullable|exists:categories,id',
+            'min_price' => 'nullable|numeric|min:0',
+            'max_price' => 'nullable|numeric|min:0',
+            'status' => 'nullable|in:active,inactive,draft',
+            'in_stock' => 'nullable|boolean',
+            'sort' => 'nullable|in:price_asc,price_desc,name_asc,name_desc,newest,oldest',
+            'per_page' => 'nullable|integer|min:1|max:100',
+        ]);
+        
         $products = $this->productService->getFilteredProducts($filters);
         return ProductResource::collection($products);
     }
@@ -34,20 +45,60 @@ class ProductController extends Controller
             'stock' => 'required|integer|min:0',
             'status' => 'string|in:active,inactive,draft',
             'description' => 'nullable|string',
-            'image' => 'nullable|string',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'images' => 'nullable|array',
+            'images.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:2048',
         ]);
 
         $data = $request->all();
         $data['slug'] = Str::slug($data['name']) . '-' . Str::random(5);
 
+        // Handle single image upload (backward compatibility)
+        if ($request->hasFile('image')) {
+            $image = $request->file('image');
+            $imageName = 'products/' . time() . '_' . Str::random(10) . '.' . $image->getClientOriginalExtension();
+            $imagePath = $image->storeAs('public', $imageName);
+            $data['image'] = 'storage/' . $imageName;
+        } elseif ($request->has('image') && is_string($request->image)) {
+            // Allow string URL for backward compatibility
+            $data['image'] = $request->image;
+        } else {
+            $data['image'] = null;
+        }
+
         $product = $this->productService->createProduct($data);
 
-        return new ProductResource($product);
+        // Handle multiple images upload
+        if ($request->hasFile('images')) {
+            $images = $request->file('images');
+            $primarySet = false;
+            
+            foreach ($images as $index => $image) {
+                $imageName = 'products/' . time() . '_' . Str::random(10) . '_' . $index . '.' . $image->getClientOriginalExtension();
+                $imagePath = $image->storeAs('public', $imageName);
+                
+                \App\Models\ProductImage::create([
+                    'product_id' => $product->id,
+                    'image_path' => 'storage/' . $imageName,
+                    'sort_order' => $index,
+                    'is_primary' => !$primarySet, // First image is primary
+                ]);
+                
+                if (!$primarySet) {
+                    // Update product main image to first uploaded image
+                    $product->update(['image' => 'storage/' . $imageName]);
+                    $primarySet = true;
+                }
+            }
+        }
+
+        return new ProductResource($product->load('images'));
     }
 
     public function show($id)
     {
         $product = $this->productService->getProductById($id);
+        $product->load('images');
         return new ProductResource($product);
     }
 
@@ -61,7 +112,9 @@ class ProductController extends Controller
             'stock' => 'integer|min:0',
             'status' => 'string|in:active,inactive,draft',
             'description' => 'nullable|string',
-            'image' => 'nullable|string',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'images' => 'nullable|array',
+            'images.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:2048',
         ]);
 
         $data = $request->all();
@@ -69,13 +122,71 @@ class ProductController extends Controller
              $data['slug'] = Str::slug($data['name']) . '-' . Str::random(5);
         }
 
+        // Get existing product to check for old image
+        $product = $this->productService->getProductById($id);
+
+        // Handle single image upload (backward compatibility)
+        if ($request->hasFile('image')) {
+            // Delete old image if exists
+            if ($product->image && Storage::disk('public')->exists(str_replace('storage/', '', $product->image))) {
+                Storage::disk('public')->delete(str_replace('storage/', '', $product->image));
+            }
+
+            $image = $request->file('image');
+            $imageName = 'products/' . time() . '_' . Str::random(10) . '.' . $image->getClientOriginalExtension();
+            $imagePath = $image->storeAs('public', $imageName);
+            $data['image'] = 'storage/' . $imageName;
+        } elseif ($request->has('image') && is_string($request->image)) {
+            // Allow string URL for backward compatibility
+            $data['image'] = $request->image;
+        } elseif ($request->has('image') && $request->image === null) {
+            // Delete image if explicitly set to null
+            if ($product->image && Storage::disk('public')->exists(str_replace('storage/', '', $product->image))) {
+                Storage::disk('public')->delete(str_replace('storage/', '', $product->image));
+            }
+            $data['image'] = null;
+        }
+
         $product = $this->productService->updateProduct($id, $data);
 
-        return new ProductResource($product);
+        // Handle multiple images upload
+        if ($request->hasFile('images')) {
+            $images = $request->file('images');
+            $existingImages = $product->images()->count();
+            
+            foreach ($images as $index => $image) {
+                $imageName = 'products/' . time() . '_' . Str::random(10) . '_' . ($existingImages + $index) . '.' . $image->getClientOriginalExtension();
+                $imagePath = $image->storeAs('public', $imageName);
+                
+                \App\Models\ProductImage::create([
+                    'product_id' => $product->id,
+                    'image_path' => 'storage/' . $imageName,
+                    'sort_order' => $existingImages + $index,
+                    'is_primary' => false,
+                ]);
+            }
+        }
+
+        return new ProductResource($product->load('images'));
     }
 
     public function destroy($id)
     {
+        // Get product to delete associated images
+        $product = $this->productService->getProductById($id);
+        
+        // Delete main image if exists
+        if ($product->image && Storage::disk('public')->exists(str_replace('storage/', '', $product->image))) {
+            Storage::disk('public')->delete(str_replace('storage/', '', $product->image));
+        }
+        
+        // Delete all product images
+        foreach ($product->images as $image) {
+            if (Storage::disk('public')->exists(str_replace('storage/', '', $image->image_path))) {
+                Storage::disk('public')->delete(str_replace('storage/', '', $image->image_path));
+            }
+        }
+        
         $this->productService->deleteProduct($id);
         return response()->json(['message' => 'Product deleted successfully']);
     }
