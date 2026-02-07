@@ -57,4 +57,24 @@ class Order extends Model
     {
         return $this->hasMany(OrderReturn::class);
     }
+
+    public function statusHistory()
+    {
+        return $this->hasMany(OrderStatusHistory::class)->orderBy('created_at', 'desc');
+    }
+
+    public function notes()
+    {
+        return $this->hasMany(OrderNote::class)->orderBy('created_at', 'desc');
+    }
+
+    public function internalNotes()
+    {
+        return $this->hasMany(OrderNote::class)->where('is_internal', true)->orderBy('created_at', 'desc');
+    }
+
+    public function publicNotes()
+    {
+        return $this->hasMany(OrderNote::class)->where('is_internal', false)->orderBy('created_at', 'desc');
+    }
 }

@@ -113,6 +113,7 @@ class OrderController extends Controller
             'status' => 'required|in:pending,paid,processing,shipped,completed,cancelled',
             'tracking_number' => 'nullable|string|max:255',
             'tracking_url' => 'nullable|url|max:500',
+            'note' => 'nullable|string|max:1000',
         ]);
 
         try {
@@ -124,7 +125,13 @@ class OrderController extends Controller
                 ];
             }
 
-            $order = $this->orderService->updateStatus($orderId, $validated['status'], $trackingData);
+            $order = $this->orderService->updateStatus(
+                $orderId,
+                $validated['status'],
+                $trackingData,
+                $validated['note'] ?? null,
+                auth('sanctum')->id()
+            );
 
             return response()->json([
                 'success' => true,
@@ -136,6 +143,198 @@ class OrderController extends Controller
                 'success' => false,
                 'message' => $e->getMessage(),
             ], 400);
+        }
+    }
+
+    /**
+     * Get valid next statuses for an order (Admin)
+     */
+    public function getValidStatuses($orderId)
+    {
+        try {
+            $validStatuses = $this->orderService->getValidNextStatuses($orderId);
+
+            return response()->json([
+                'success' => true,
+                'data' => $validStatuses,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 404);
+        }
+    }
+
+    /**
+     * Get order status history (Admin)
+     */
+    public function getStatusHistory($orderId)
+    {
+        try {
+            $history = $this->orderService->getStatusHistory($orderId);
+
+            return response()->json([
+                'success' => true,
+                'data' => $history,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 404);
+        }
+    }
+
+    /**
+     * Get order status history (Customer)
+     */
+    public function getStatusHistoryCustomer($orderId)
+    {
+        try {
+            $userId = auth('sanctum')->id();
+            $order = \App\Models\Order::where('id', $orderId)
+                ->where('user_id', $userId)
+                ->firstOrFail();
+
+            $history = $this->orderService->getStatusHistory($orderId);
+
+            return response()->json([
+                'success' => true,
+                'data' => $history,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Order not found',
+            ], 404);
+        }
+    }
+
+    /**
+     * Add note to order (Admin)
+     */
+    public function addNote(Request $request, $orderId)
+    {
+        $validated = $request->validate([
+            'note' => 'required|string|max:2000',
+            'is_internal' => 'boolean',
+        ]);
+
+        try {
+            $note = $this->orderService->addNote(
+                $orderId,
+                $validated['note'],
+                $validated['is_internal'] ?? true,
+                auth('sanctum')->id()
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Note added successfully',
+                'data' => $note->load('user'),
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    /**
+     * Get order notes (Admin)
+     */
+    public function getNotes($orderId)
+    {
+        try {
+            $notes = $this->orderService->getNotes($orderId, true); // Include internal notes
+
+            return response()->json([
+                'success' => true,
+                'data' => $notes,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 404);
+        }
+    }
+
+    /**
+     * Get order notes (Customer - only public notes)
+     */
+    public function getNotesCustomer($orderId)
+    {
+        try {
+            $userId = auth('sanctum')->id();
+            $order = \App\Models\Order::where('id', $orderId)
+                ->where('user_id', $userId)
+                ->firstOrFail();
+
+            $notes = $this->orderService->getNotes($orderId, false); // Only public notes
+
+            return response()->json([
+                'success' => true,
+                'data' => $notes,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Order not found',
+            ], 404);
+        }
+    }
+
+    /**
+     * Update order note (Admin)
+     */
+    public function updateNote(Request $request, $orderId, $noteId)
+    {
+        $validated = $request->validate([
+            'note' => 'required|string|max:2000',
+        ]);
+
+        try {
+            $note = \App\Models\OrderNote::where('order_id', $orderId)
+                ->findOrFail($noteId);
+
+            $note->update(['note' => $validated['note']]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Note updated successfully',
+                'data' => $note->fresh()->load('user'),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 404);
+        }
+    }
+
+    /**
+     * Delete order note (Admin)
+     */
+    public function deleteNote($orderId, $noteId)
+    {
+        try {
+            $note = \App\Models\OrderNote::where('order_id', $orderId)
+                ->findOrFail($noteId);
+
+            $note->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Note deleted successfully',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 404);
         }
     }
 

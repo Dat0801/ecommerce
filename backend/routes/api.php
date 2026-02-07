@@ -73,6 +73,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/orders', [OrderController::class, 'index']);
         Route::get('/orders/{id}', [OrderController::class, 'show']);
         Route::post('/orders/{id}/cancel', [OrderController::class, 'cancel']);
+        Route::get('/orders/{id}/status-history', [OrderController::class, 'getStatusHistoryCustomer']);
+        Route::get('/orders/{id}/notes', [OrderController::class, 'getNotesCustomer']);
 
         // Invoices
         Route::get('/orders/{orderId}/invoice', [\App\Http\Controllers\Api\V1\InvoiceController::class, 'show']);
@@ -135,7 +137,14 @@ Route::prefix('v1')->group(function () {
 
             // Order Management
             Route::get('/orders', [OrderController::class, 'adminIndex']);
+            Route::get('/orders/{id}', [OrderController::class, 'adminShow']);
             Route::put('/orders/{id}/status', [OrderController::class, 'adminUpdateStatus']);
+            Route::get('/orders/{id}/valid-statuses', [OrderController::class, 'getValidStatuses']);
+            Route::get('/orders/{id}/status-history', [OrderController::class, 'getStatusHistory']);
+            Route::get('/orders/{id}/notes', [OrderController::class, 'getNotes']);
+            Route::post('/orders/{id}/notes', [OrderController::class, 'addNote']);
+            Route::put('/orders/{id}/notes/{noteId}', [OrderController::class, 'updateNote']);
+            Route::delete('/orders/{id}/notes/{noteId}', [OrderController::class, 'deleteNote']);
 
             // Review Management
             Route::post('/reviews/{id}/approve', [ReviewController::class, 'approve']);
@@ -150,6 +159,13 @@ Route::prefix('v1')->group(function () {
             // User Management
             Route::apiResource('users', \App\Http\Controllers\Api\V1\UserController::class);
             Route::get('/users/{id}/statistics', [\App\Http\Controllers\Api\V1\UserController::class, 'statistics']);
+
+            // Analytics & Reporting
+            Route::get('/analytics/dashboard', [\App\Http\Controllers\Api\V1\AnalyticsController::class, 'dashboard']);
+            Route::get('/analytics/sales', [\App\Http\Controllers\Api\V1\AnalyticsController::class, 'sales']);
+            Route::get('/analytics/products', [\App\Http\Controllers\Api\V1\AnalyticsController::class, 'products']);
+            Route::get('/analytics/customers', [\App\Http\Controllers\Api\V1\AnalyticsController::class, 'customers']);
+            Route::get('/analytics/orders', [\App\Http\Controllers\Api\V1\AnalyticsController::class, 'orders']);
 
             // Return Management
             Route::get('/returns', [\App\Http\Controllers\Api\V1\ReturnController::class, 'index']);

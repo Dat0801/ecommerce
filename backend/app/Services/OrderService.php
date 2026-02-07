@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Interfaces\CartRepositoryInterface;
 use App\Interfaces\OrderRepositoryInterface;
 use Illuminate\Support\Facades\DB;
+use App\Models\OrderStatusHistory;
+use App\Models\OrderNote;
 
 class OrderService
 {
@@ -207,45 +209,138 @@ class OrderService
         return $orders;
     }
 
-    public function updateStatus($orderId, $status, $trackingData = null)
+    public function updateStatus($orderId, $status, $trackingData = null, $note = null, $changedBy = null)
+    {
+        return DB::transaction(function () use ($orderId, $status, $trackingData, $note, $changedBy) {
+            $order = $this->orders->getById($orderId);
+            $oldStatus = $order->status;
+
+            // Validate status transition
+            if (!$this->isValidStatusTransition($oldStatus, $status)) {
+                throw new \Exception("Invalid status transition from '{$oldStatus}' to '{$status}'");
+            }
+
+            $updateData = ['status' => $status];
+            
+            // If status is 'shipped', add tracking information
+            if ($status === 'shipped' && $trackingData) {
+                $updateData['tracking_number'] = $trackingData['tracking_number'] ?? null;
+                $updateData['tracking_url'] = $trackingData['tracking_url'] ?? null;
+                $updateData['shipped_at'] = now();
+            }
+            
+            $order = $this->orders->updateStatus($orderId, $status, $updateData);
+
+            // Record status history
+            \App\Models\OrderStatusHistory::create([
+                'order_id' => $orderId,
+                'status_from' => $oldStatus,
+                'status_to' => $status,
+                'changed_by' => $changedBy ?? auth('sanctum')->id(),
+                'note' => $note,
+            ]);
+
+            $order = $order->fresh(['items.product']);
+
+            // Send email notifications
+            if ($order->shipping_email && $oldStatus !== $status) {
+                try {
+                    // Send status update notification
+                    \Illuminate\Support\Facades\Notification::route('mail', $order->shipping_email)
+                        ->notify(new \App\Notifications\OrderStatusUpdate($order, $oldStatus, $status));
+
+                    // Send special notification for shipped orders
+                    if ($status === 'shipped') {
+                        \Illuminate\Support\Facades\Notification::route('mail', $order->shipping_email)
+                            ->notify(new \App\Notifications\OrderShipped($order));
+                    }
+                } catch (\Exception $e) {
+                    // Log error but don't fail the status update
+                    \Illuminate\Support\Facades\Log::error('Failed to send order status update email', [
+                        'order_id' => $orderId,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            return $this->formatOrderResponse($order);
+        });
+    }
+
+    /**
+     * Validate status transition
+     */
+    protected function isValidStatusTransition($from, $to)
+    {
+        $validTransitions = [
+            'pending' => ['paid', 'cancelled'],
+            'paid' => ['processing', 'cancelled'],
+            'processing' => ['shipped', 'cancelled'],
+            'shipped' => ['completed'],
+            'completed' => [], // No transitions from completed
+            'cancelled' => [], // No transitions from cancelled
+        ];
+
+        return in_array($to, $validTransitions[$from] ?? []);
+    }
+
+    /**
+     * Get valid next statuses for an order
+     */
+    public function getValidNextStatuses($orderId)
     {
         $order = $this->orders->getById($orderId);
-        $oldStatus = $order->status;
-        
-        $updateData = ['status' => $status];
-        
-        // If status is 'shipped', add tracking information
-        if ($status === 'shipped' && $trackingData) {
-            $updateData['tracking_number'] = $trackingData['tracking_number'] ?? null;
-            $updateData['tracking_url'] = $trackingData['tracking_url'] ?? null;
-            $updateData['shipped_at'] = now();
+        $currentStatus = $order->status;
+
+        $validTransitions = [
+            'pending' => ['paid', 'cancelled'],
+            'paid' => ['processing', 'cancelled'],
+            'processing' => ['shipped', 'cancelled'],
+            'shipped' => ['completed'],
+            'completed' => [],
+            'cancelled' => [],
+        ];
+
+        return $validTransitions[$currentStatus] ?? [];
+    }
+
+    /**
+     * Add note to order
+     */
+    public function addNote($orderId, $note, $isInternal = true, $userId = null)
+    {
+        return \App\Models\OrderNote::create([
+            'order_id' => $orderId,
+            'user_id' => $userId ?? auth('sanctum')->id(),
+            'note' => $note,
+            'is_internal' => $isInternal,
+        ]);
+    }
+
+    /**
+     * Get order status history
+     */
+    public function getStatusHistory($orderId)
+    {
+        return \App\Models\OrderStatusHistory::where('order_id', $orderId)
+            ->with('changedBy')
+            ->orderBy('created_at', 'desc')
+            ->get();
+    }
+
+    /**
+     * Get order notes
+     */
+    public function getNotes($orderId, $includeInternal = false)
+    {
+        $query = \App\Models\OrderNote::where('order_id', $orderId)
+            ->with('user');
+
+        if (!$includeInternal) {
+            $query->where('is_internal', false);
         }
-        
-        $order = $this->orders->updateStatus($orderId, $status, $updateData);
-        $order = $order->fresh(['items.product']);
 
-        // Send email notifications
-        if ($order->shipping_email && $oldStatus !== $status) {
-            try {
-                // Send status update notification
-                \Illuminate\Support\Facades\Notification::route('mail', $order->shipping_email)
-                    ->notify(new \App\Notifications\OrderStatusUpdate($order, $oldStatus, $status));
-
-                // Send special notification for shipped orders
-                if ($status === 'shipped') {
-                    \Illuminate\Support\Facades\Notification::route('mail', $order->shipping_email)
-                        ->notify(new \App\Notifications\OrderShipped($order));
-                }
-            } catch (\Exception $e) {
-                // Log error but don't fail the status update
-                \Illuminate\Support\Facades\Log::error('Failed to send order status update email', [
-                    'order_id' => $orderId,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
-
-        return $this->formatOrderResponse($order);
+        return $query->orderBy('created_at', 'desc')->get();
     }
 
     public function updateTracking($orderId, $trackingNumber, $trackingUrl = null)
