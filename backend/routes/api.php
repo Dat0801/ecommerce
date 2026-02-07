@@ -24,11 +24,18 @@ Route::prefix('v1')->group(function () {
     Route::get('/products', [ProductController::class, 'index']);
     Route::get('/products/{id}', [ProductController::class, 'show']);
     
+    // Public Variant Attributes
+    Route::get('/variant-attributes', [\App\Http\Controllers\Api\V1\VariantAttributeController::class, 'index']);
+    
     // Public Reviews
     Route::get('/products/{productId}/reviews', [ReviewController::class, 'index']);
 
     // Public Order Tracking
     Route::get('/orders/track/{trackingNumber}', [OrderController::class, 'trackOrder']);
+
+    // Webhooks (no auth required, but should be verified by signature)
+    Route::post('/webhooks/stripe', [\App\Http\Controllers\Api\V1\WebhookController::class, 'stripe']);
+    Route::post('/webhooks/paypal', [\App\Http\Controllers\Api\V1\WebhookController::class, 'paypal']);
 
     // Public Coupon Validation
     Route::post('/coupons/validate', [CouponController::class, 'validateCoupon']);
@@ -58,12 +65,25 @@ Route::prefix('v1')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/user', [AuthController::class, 'user']);
+        Route::put('/user/profile', [AuthController::class, 'updateProfile']);
+        Route::post('/user/change-password', [AuthController::class, 'changePassword']);
         Route::post('/email/verification-notification', [AuthController::class, 'resendVerificationEmail']);
 
         // Orders (customer)
         Route::get('/orders', [OrderController::class, 'index']);
         Route::get('/orders/{id}', [OrderController::class, 'show']);
         Route::post('/orders/{id}/cancel', [OrderController::class, 'cancel']);
+
+        // Invoices
+        Route::get('/orders/{orderId}/invoice', [\App\Http\Controllers\Api\V1\InvoiceController::class, 'show']);
+        Route::get('/orders/{orderId}/invoice/download', [\App\Http\Controllers\Api\V1\InvoiceController::class, 'download']);
+        Route::get('/orders/{orderId}/invoice/html', [\App\Http\Controllers\Api\V1\InvoiceController::class, 'html']);
+
+        // Returns (customer)
+        Route::get('/returns', [\App\Http\Controllers\Api\V1\ReturnController::class, 'index']);
+        Route::post('/returns', [\App\Http\Controllers\Api\V1\ReturnController::class, 'store']);
+        Route::get('/returns/{id}', [\App\Http\Controllers\Api\V1\ReturnController::class, 'show']);
+        Route::post('/returns/{id}/cancel', [\App\Http\Controllers\Api\V1\ReturnController::class, 'cancel']);
 
         // Address Management
         Route::apiResource('addresses', AddressController::class);
@@ -103,6 +123,16 @@ Route::prefix('v1')->group(function () {
             Route::post('/product-images/{id}/set-primary', [\App\Http\Controllers\Api\V1\ProductImageController::class, 'setPrimary']);
             Route::post('/product-images/reorder', [\App\Http\Controllers\Api\V1\ProductImageController::class, 'reorder']);
 
+            // Variant Attributes Management
+            Route::apiResource('variant-attributes', \App\Http\Controllers\Api\V1\VariantAttributeController::class);
+            Route::post('/variant-attributes/{id}/values', [\App\Http\Controllers\Api\V1\VariantAttributeController::class, 'addValue']);
+
+            // Product Variants Management
+            Route::get('/products/{productId}/variants', [\App\Http\Controllers\Api\V1\ProductVariantController::class, 'index']);
+            Route::post('/products/{productId}/variants', [\App\Http\Controllers\Api\V1\ProductVariantController::class, 'store']);
+            Route::put('/products/{productId}/variants/{variantId}', [\App\Http\Controllers\Api\V1\ProductVariantController::class, 'update']);
+            Route::delete('/products/{productId}/variants/{variantId}', [\App\Http\Controllers\Api\V1\ProductVariantController::class, 'destroy']);
+
             // Order Management
             Route::get('/orders', [OrderController::class, 'adminIndex']);
             Route::put('/orders/{id}/status', [OrderController::class, 'adminUpdateStatus']);
@@ -116,6 +146,17 @@ Route::prefix('v1')->group(function () {
 
             // Shipping Method Management
             Route::apiResource('shipping-methods', ShippingMethodController::class);
+
+            // User Management
+            Route::apiResource('users', \App\Http\Controllers\Api\V1\UserController::class);
+            Route::get('/users/{id}/statistics', [\App\Http\Controllers\Api\V1\UserController::class, 'statistics']);
+
+            // Return Management
+            Route::get('/returns', [\App\Http\Controllers\Api\V1\ReturnController::class, 'index']);
+            Route::get('/returns/{id}', [\App\Http\Controllers\Api\V1\ReturnController::class, 'show']);
+            Route::post('/returns/{id}/approve', [\App\Http\Controllers\Api\V1\ReturnController::class, 'approve']);
+            Route::post('/returns/{id}/reject', [\App\Http\Controllers\Api\V1\ReturnController::class, 'reject']);
+            Route::post('/returns/{id}/process-refund', [\App\Http\Controllers\Api\V1\ReturnController::class, 'processRefund']);
         });
 
         // Customer Routes

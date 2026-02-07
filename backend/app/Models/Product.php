@@ -62,4 +62,46 @@ class Product extends Model
     {
         return $this->hasOne(ProductImage::class)->where('is_primary', true);
     }
+
+    public function variants()
+    {
+        return $this->hasMany(ProductVariant::class)->orderBy('sort_order');
+    }
+
+    public function defaultVariant()
+    {
+        return $this->hasOne(ProductVariant::class)->where('is_default', true);
+    }
+
+    /**
+     * Check if product has variants
+     */
+    public function hasVariants()
+    {
+        return $this->variants()->count() > 0;
+    }
+
+    /**
+     * Get minimum variant price
+     */
+    public function getMinVariantPriceAttribute()
+    {
+        if (!$this->hasVariants()) {
+            return $this->price;
+        }
+
+        return $this->variants()->min('price') ?? $this->price;
+    }
+
+    /**
+     * Get maximum variant price
+     */
+    public function getMaxVariantPriceAttribute()
+    {
+        if (!$this->hasVariants()) {
+            return $this->price;
+        }
+
+        return $this->variants()->max('price') ?? $this->price;
+    }
 }

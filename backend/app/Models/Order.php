@@ -52,4 +52,9 @@ class Order extends Model
     {
         return $this->belongsTo(ShippingMethod::class);
     }
+
+    public function returns()
+    {
+        return $this->hasMany(OrderReturn::class);
+    }
 }

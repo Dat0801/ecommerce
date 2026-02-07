@@ -120,4 +120,40 @@ class AuthService
             'email' => [__($status)],
         ]);
     }
+
+    public function updateProfile($user, array $data)
+    {
+        $updateData = [];
+
+        if (isset($data['name'])) {
+            $updateData['name'] = $data['name'];
+        }
+
+        // Email update would require verification, so we'll skip it for now
+        // or implement email change verification separately
+
+        if (!empty($updateData)) {
+            $user->update($updateData);
+        }
+
+        return $user->fresh();
+    }
+
+    public function changePassword($user, array $data)
+    {
+        // Validate current password
+        if (!Hash::check($data['current_password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'current_password' => ['The current password is incorrect.'],
+            ]);
+        }
+
+        // Update password
+        $user->password = Hash::make($data['password']);
+        $user->save();
+
+        return [
+            'message' => 'Password changed successfully.',
+        ];
+    }
 }

@@ -15,7 +15,7 @@ class ProductRepository implements ProductRepositoryInterface
 
     public function getById($id)
     {
-        return Product::with(['category', 'images'])->findOrFail($id);
+        return Product::with(['category', 'images', 'variants.attributeValues.attribute'])->findOrFail($id);
     }
 
     public function create(array $data)

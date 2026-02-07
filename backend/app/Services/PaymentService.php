@@ -42,20 +42,41 @@ class PaymentService
             throw new \Exception('Stripe is not configured. Please set STRIPE_SECRET_KEY in your .env file.');
         }
 
-        // For now, we'll create a payment intent
-        // In production, you would use the Stripe PHP SDK
-        // This is a placeholder implementation
-        
         $paymentIntentId = $paymentData['payment_intent_id'] ?? null;
         
         if (!$paymentIntentId) {
             throw new \Exception('Payment intent ID is required for Stripe payments.');
         }
 
-        // In a real implementation, you would verify the payment intent with Stripe API
-        // For now, we'll assume the payment was successful if payment_intent_id is provided
-        
-        // Update order with payment information
+        // If Stripe SDK is available, verify the payment intent
+        if (class_exists('\Stripe\Stripe')) {
+            \Stripe\Stripe::setApiKey($stripeKey);
+            
+            try {
+                $paymentIntent = \Stripe\PaymentIntent::retrieve($paymentIntentId);
+                
+                if ($paymentIntent->status === 'succeeded') {
+                    $order->update([
+                        'payment_status' => 'paid',
+                        'payment_transaction_id' => $paymentIntentId,
+                    ]);
+
+                    return [
+                        'success' => true,
+                        'message' => 'Payment processed successfully.',
+                        'payment_status' => 'paid',
+                        'transaction_id' => $paymentIntentId,
+                    ];
+                } else {
+                    throw new \Exception('Payment intent status: ' . $paymentIntent->status);
+                }
+            } catch (\Exception $e) {
+                throw new \Exception('Stripe payment verification failed: ' . $e->getMessage());
+            }
+        }
+
+        // Fallback: assume payment successful if intent ID provided (for testing)
+        // In production, always verify with Stripe API
         $order->update([
             'payment_status' => 'paid',
             'payment_transaction_id' => $paymentIntentId,
@@ -63,7 +84,7 @@ class PaymentService
 
         return [
             'success' => true,
-            'message' => 'Payment processed successfully.',
+            'message' => 'Payment processed successfully. (Note: Install stripe/stripe-php for verification)',
             'payment_status' => 'paid',
             'transaction_id' => $paymentIntentId,
         ];
@@ -107,13 +128,33 @@ class PaymentService
             throw new \Exception('Stripe is not configured.');
         }
 
-        // In production, you would use Stripe PHP SDK to create a payment intent
-        // This is a placeholder that returns the order total
+        // Check if Stripe SDK is available
+        if (class_exists('\Stripe\Stripe')) {
+            \Stripe\Stripe::setApiKey($stripeKey);
+
+            $paymentIntent = \Stripe\PaymentIntent::create([
+                'amount' => (int)($order->total * 100), // Convert to cents
+                'currency' => 'usd',
+                'metadata' => [
+                    'order_id' => $order->id,
+                ],
+            ]);
+
+            return [
+                'client_secret' => $paymentIntent->client_secret,
+                'amount' => $paymentIntent->amount,
+                'currency' => $paymentIntent->currency,
+                'order_id' => $order->id,
+            ];
+        }
+
+        // Fallback placeholder if Stripe SDK not installed
         return [
             'client_secret' => 'placeholder_client_secret_' . $order->id,
-            'amount' => (int)($order->total * 100), // Convert to cents
+            'amount' => (int)($order->total * 100),
             'currency' => 'usd',
             'order_id' => $order->id,
+            'note' => 'Install stripe/stripe-php package for full functionality',
         ];
     }
 
